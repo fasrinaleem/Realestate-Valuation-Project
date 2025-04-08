@@ -24,7 +24,7 @@ with open("style.css") as f:
 with st.sidebar:
     st.image("RealStateLogo.jpeg", width=100)
     st.markdown('<div class="sidebar-title">Real Estate App</div>', unsafe_allow_html=True)
-    menu = st.radio("📋 Menu", ["Dashboard", "Predict Price", "Report", "About"])
+    menu = st.radio("📋 Menu", ["Dashboard", "Predict Price", "Budget Explorer", "Report", "About"])
 
 # -------------------- Header --------------------
 st.markdown("""
@@ -33,10 +33,9 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# -------------------- Page: Dashboard --------------------
-if menu == "Dashboard":
-
-    # Load dataset
+# -------------------- Load Dataset Globally --------------------
+@st.cache_data
+def load_data():
     df = pd.read_csv("Real_estate_valuation_data_set.csv")
     df.rename(columns={
         "X1 transaction date": "Transaction Date",
@@ -47,7 +46,12 @@ if menu == "Dashboard":
         "X6 longitude": "Longitude",
         "Y house price of unit area": "House Price"
     }, inplace=True)
+    return df
 
+df = load_data()
+
+# -------------------- Page: Dashboard --------------------
+if menu == "Dashboard":
     # Dashboard heading and description
     st.markdown("""
         <style>
@@ -140,7 +144,7 @@ if menu == "Dashboard":
         get_fill_color='[0, 255, 0, 220]',  # Green
         pickable=True
     )
-    
+
     # 🔺 Get the highest priced property
     highest_value = df[df["House Price"] == df["House Price"].max()].iloc[0:1]
 
@@ -290,6 +294,119 @@ elif menu == "Predict Price":
         st.pyplot(fig)
 
     st.markdown('</div>', unsafe_allow_html=True)
+
+# -------------------- Page: Budget Explorer --------------------
+# -------------------- Page: Budget Explorer --------------------
+elif menu == "Budget Explorer":
+    st.markdown("## 💰 Budget-Based Property Recommendations")
+
+    # Sidebar-like filters
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        budget = st.slider("💰 Max Price (NT$/Ping)", 
+                           min_value=int(df["House Price"].min()), 
+                           max_value=int(df["House Price"].max()), 
+                           value=50)
+
+    with col2:
+        max_age = st.slider("🏚️ Max House Age (years)", 
+                            min_value=0, 
+                            max_value=int(df["House Age"].max()), 
+                            value=30)
+
+    with col3:
+        max_mrt = st.slider("🚇 Max Distance to MRT (meters)", 
+                            min_value=0, 
+                            max_value=int(df["Distance to MRT"].max()), 
+                            value=2000)
+
+    min_store = st.slider("🏪 Min Convenience Stores Nearby", 
+                          min_value=0, 
+                          max_value=int(df["Convenience Stores"].max()), 
+                          value=1)
+
+    # 🎯 Apply filters
+    filtered = df[
+        (df["House Price"] <= budget) &
+        (df["House Age"] <= max_age) &
+        (df["Distance to MRT"] <= max_mrt) &
+        (df["Convenience Stores"] >= min_store)
+    ]
+
+    st.markdown(f"### 🔍 {len(filtered)} Properties Match Your Criteria")
+
+    if not filtered.empty:
+        # Sort by value index
+        filtered["Value Index"] = filtered["Distance to MRT"] / filtered["House Price"]
+        filtered = filtered.sort_values(by="Value Index", ascending=True)
+
+        st.dataframe(filtered[["Transaction Date", "House Price", "House Age", "Distance to MRT", "Convenience Stores"]].head(10))
+
+        # 🔢 Row selection for download
+        row_limit = st.selectbox(
+            "🔽 Select number of top results to download:",
+            options=[5, 10, 25, 50],
+            index=1  # default to 10
+        )
+
+        # 💾 Download filtered results
+        csv = filtered.head(row_limit).to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label=f"📥 Download Top {row_limit} Results as CSV",
+            data=csv,
+            file_name=f"top_{row_limit}_budget_properties.csv",
+            mime="text/csv"
+        )
+        
+        # 🗺️ Matching Properties on the Map
+        st.markdown("### 🗺️ Matching Properties on the Map")
+
+        # Assign a radius for visualization clarity
+        filtered["Radius"] = filtered["House Price"] * 3
+
+        # PyDeck layer
+        budget_layer = pdk.Layer(
+            "ScatterplotLayer",
+            data=filtered,
+            get_position='[Longitude, Latitude]',
+            get_radius="Radius",
+            get_fill_color='[0, 128, 255, 180]',  # Light blue
+            pickable=True,
+            auto_highlight=True
+        )
+
+        # Tooltip with property info
+        tooltip = {
+            "html": "<b>💰 Price:</b> {House Price} NT$/Ping<br/>"
+                    "<b>🏚️ Age:</b> {House Age} years<br/>"
+                    "<b>🚇 MRT:</b> {Distance to MRT} meters<br/>"
+                    "<b>🗓️ Date:</b> {Transaction Date}",
+            "style": {
+                "backgroundColor": "white",
+                "color": "black",
+                "fontSize": "12px"
+            }
+        }
+
+        # View configuration based on filtered results
+        view_state = pdk.ViewState(
+            latitude=filtered["Latitude"].mean(),
+            longitude=filtered["Longitude"].mean(),
+            zoom=12.5,
+            pitch=45,
+            bearing=0
+        )
+
+        # Final map render
+        st.pydeck_chart(pdk.Deck(
+            layers=[budget_layer],
+            initial_view_state=view_state,
+            tooltip=tooltip,
+            map_style="mapbox://styles/mapbox/light-v10"
+        ))
+    else:
+        st.warning("⚠️ No properties match your criteria. Try adjusting the filters.")
 
 # -------------------- Page: Report --------------------
 elif menu == "Report":
