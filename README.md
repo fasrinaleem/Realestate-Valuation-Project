@@ -83,3 +83,10 @@ The dataset is sourced from a real estate valuation dataset from Taiwan. Each ro
         PyDeck (Deck.gl)
         Geopy (Nominatim API)
         Pandas, NumPy, Matplotlib
+
+👤 Authors
+
+Developed by Fasrin Aleem, Rabinra Mahato & Kushi
+Course: ICT619 Artificial Intelligence
+Institution: Murdoch University
+Year: 2025
