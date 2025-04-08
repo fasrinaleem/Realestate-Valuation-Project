@@ -3,6 +3,11 @@ import numpy as np
 import joblib
 import pandas as pd
 import matplotlib.pyplot as plt
+import pydeck as pdk
+from geopy.geocoders import Nominatim
+import time
+
+
 
 # -------------------- Load Model & Scaler --------------------
 model = joblib.load("real_estate_model.pkl")
@@ -71,10 +76,124 @@ if menu == "Dashboard":
         </div>
     """.format(len(df)), unsafe_allow_html=True)
 
-    # 📍 Property Locations Map (Simple Version with st.map)
-    st.markdown("#### 🗺️ Property Locations on Map")
-    st.map(df.rename(columns={"Latitude": "latitude", "Longitude": "longitude"}))
 
+# -------------------- Map Start --------------------
+    # Function to get location names
+    @st.cache_data(show_spinner=False)
+    def get_location_names(df, lat_col="Latitude", lon_col="Longitude", max_rows=5):
+        geolocator = Nominatim(user_agent="real_estate_app")
+        names = []
+        for _, row in df.head(max_rows).iterrows():
+            lat = round(row[lat_col], 6)
+            lon = round(row[lon_col], 6)
+            try:
+                location = geolocator.reverse((lat, lon), exactly_one=True, timeout=10)
+                if location and hasattr(location, 'address'):
+                    names.append(location.address)
+                else:
+                    names.append(f"{lat}, {lon}")
+                time.sleep(1.2)
+            except Exception:
+                names.append(f"{lat}, {lon}")
+        return names
+
+    # ---------------------- TOP 5 TABLE ----------------------
+    st.markdown("### 🏆 Top 5 Investment Properties (Value-for-Access)")
+
+    top_zones = df.copy()
+    top_zones["Value Index"] = top_zones["Distance to MRT"] / top_zones["House Price"]
+    top5 = top_zones.sort_values(by="Value Index", ascending=False).head(5).reset_index(drop=True)
+    top5["Location"] = get_location_names(top5)
+
+    # Format values
+    top5_display = top5.copy()
+    top5_display["House Price"] = top5_display["House Price"].map(lambda x: f"{x:.2f} NT$/Ping")
+    top5_display["Distance to MRT"] = top5_display["Distance to MRT"].map(lambda x: f"{x:.1f} meters")
+    top5_display["House Age"] = top5_display["House Age"].map(lambda x: f"{int(x)} years")
+
+    st.dataframe(top5_display[["Location", "House Price", "Distance to MRT", "House Age"]])
+
+    # ---------------------- MAP ----------------------
+    st.markdown("## 🗺️ Investment Hotspots Map (All 414 Houses)")
+
+    # Ensure all records are visible
+    df_map = df.copy()
+    df_map["Radius"] = df_map["House Price"] * 3  # smaller radius for clarity
+
+    # 🔵 Main layer: all 414 properties
+    layer = pdk.Layer(
+        "ScatterplotLayer",
+        data=df_map,
+        get_position='[Longitude, Latitude]',
+        get_radius="Radius",
+        get_fill_color='[30, 144, 255, 120]',  # Dodger Blue (transparent)
+        pickable=True,
+        auto_highlight=True,
+    )
+
+    # 🟢 Top 5 investment picks
+    highlight_layer = pdk.Layer(
+        "ScatterplotLayer",
+        data=top5,
+        get_position='[Longitude, Latitude]',
+        get_radius=200,
+        get_fill_color='[0, 255, 0, 220]',  # Green
+        pickable=True
+    )
+    
+    # 🔺 Get the highest priced property
+    highest_value = df[df["House Price"] == df["House Price"].max()].iloc[0:1]
+
+    # 🔴 Highest-priced property
+    highlight_highest_layer = pdk.Layer(
+        "ScatterplotLayer",
+        data=highest_value,
+        get_position='[Longitude, Latitude]',
+        get_radius=300,
+        get_fill_color='[255, 0, 0, 240]',  # Bright Red
+        pickable=True
+    )
+
+    # 🧭 Center map tightly around data
+    view_state = pdk.ViewState(
+        latitude=df["Latitude"].mean(),
+        longitude=df["Longitude"].mean(),
+        zoom=12.5,  # slightly tighter zoom for clarity
+        pitch=45,
+        bearing=0
+    )
+
+    # Tooltip
+    tooltip = {
+        "html": "<b>💰 Price:</b> {House Price} NT$/Ping<br/>"
+                "<b>🏚️ Age:</b> {House Age} years<br/>"
+                "<b>🚇 MRT:</b> {Distance to MRT} meters<br/>"
+                "<b>🗓️ Date:</b> {Transaction Date}",
+        "style": {"backgroundColor": "white", "color": "black", "fontSize": "12px"}
+    }
+
+    # Final Map Render
+    st.pydeck_chart(pdk.Deck(
+        layers=[layer, highlight_layer, highlight_highest_layer],
+        initial_view_state=view_state,
+        tooltip=tooltip,
+        map_style="mapbox://styles/mapbox/dark-v10"
+    ))
+
+    # ---------------------- METRICS ----------------------
+    col1, col2, col3 = st.columns(3)
+    col1.metric("📊 Avg Price", f"{df['House Price'].mean():.2f} NT$/Ping")
+    col2.metric("🏘️ Oldest Property", f"{df['House Age'].max()} years")
+    col3.metric("🚇 Closest MRT", f"{df['Distance to MRT'].min():.2f} meters")
+
+    # ---------------------- TREND ----------------------
+    st.markdown("### 📈 Price Trend by House Age")
+    fig, ax = plt.subplots()
+    ax.plot(df.groupby("House Age")["House Price"].mean(), color="#0A9396", marker="o")
+    ax.set_xlabel("House Age (years)")
+    ax.set_ylabel("Average Price (NT$/Ping)")
+    st.pyplot(fig)
+# -------------------- Map End --------------------
 
     # Charts layout - 2x2 grid
     col1, col2 = st.columns(2)
