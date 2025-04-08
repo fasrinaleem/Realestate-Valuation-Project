@@ -180,8 +180,7 @@ elif menu == "About":
 st.markdown("""
 <hr>
 <div style='text-align:center; color:gray;'>
-    © 2025 R-Tech Solution | <a href='https://github.com/fasrinaleem/Realestate-Valuation-Project/tree/master' target='_blank'>Github</a> |
-    <a href='mailto:you@example.com'>Contact</a>
+    © 2025 R-Tech Solution | <a href='https://github.com/fasrinaleem/Realestate-Valuation-Project/tree/master' target='_blank'>Github</a>
 </div>
 """, unsafe_allow_html=True)
 
