@@ -42,8 +42,17 @@ Access App: https://realestate-valuation-prediction.streamlit.app
 ---
 
 ## 📂 Project Structure
-📦 Realestate-Valuation-Project/ ├── real_estate_app.py # Main Streamlit app ├── train_model.py # ML model training script ├── real_estate_model.pkl # Trained RandomForestRegressor ├── real_estate_scaler.pkl # StandardScaler instance ├── Real_estate_valuation_data_set.csv # Dataset ├── style.css # Custom CSS └── requirements.txt # Required packages
-
+Realestate-Valuation-Project/
+│
+├── real_estate_app.py           # Main Streamlit app
+├── train_model.py               # Model training script
+├── requirements.txt             # Python dependencies
+├── style.css                    # Custom CSS styling
+├── RealStateLogo.jpeg           # App logo
+├── Real_estate_valuation_data_set.csv  # Dataset
+├── real_estate_model.pkl        # Trained model
+├── real_estate_scaler.pkl       # Scaler used for prediction
+└── README.md                    # You're here!
 
 ## 🧪 Dataset & Feature Explanation
 
