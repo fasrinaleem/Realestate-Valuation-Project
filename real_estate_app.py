@@ -47,10 +47,6 @@ if menu == "Dashboard":
         </style>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div class="dashboard-title">📊 Dashboard Overview</div>', unsafe_allow_html=True)
-    st.markdown('<div class="dashboard-subtext">Insightful visualizations based on the Real Estate dataset.</div>', unsafe_allow_html=True)
-    st.markdown("---")
-
     # Load dataset
     df = pd.read_csv("Real_estate_valuation_data_set.csv")
     df.rename(columns={
@@ -63,7 +59,14 @@ if menu == "Dashboard":
         "Y house price of unit area": "House Price"
     }, inplace=True)
 
+    st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
     st.metric("📈 Total Records", len(df))
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    fig1, ax1 = plt.subplots()
+    ax1.hist(df['House Price'], bins=20, color="#0A9396", edgecolor='white')
+    ax1.set_title("House Price Distribution", fontsize=14)
+    ax1.grid(True, linestyle='--', alpha=0.5)
 
     # Layout 2x2 with st.columns
     col1, col2 = st.columns(2)
@@ -135,7 +138,7 @@ elif menu == "Predict Price":
 
     with col2:
         dist_mrt = st.number_input("🚇 Distance to Nearest MRT (meters)", min_value=0.0, max_value=10000.0, value=1000.0)
-        latitude = st.number_input("🌍 Latitude", value=24.95, step=0.01)
+        latitude = st.number_input("🌍 Latitude", value=24.95, step=0.01, help="Enter between 24.9 and 25.1")
         longitude = st.number_input("🌍 Longitude", value=121.55, step=0.01)
 
     # Predict button
@@ -174,5 +177,11 @@ elif menu == "About":
     """)
 
 # ---------------- Footer ----------------
-st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown("<center style='color:gray;'>© 2025 R-Tech Solution | Streamlit App</center>", unsafe_allow_html=True)
+st.markdown("""
+<hr>
+<div style='text-align:center; color:gray;'>
+    © 2025 R-Tech Solution | <a href='https://github.com/fasrinaleem/Realestate-Valuation-Project/tree/master' target='_blank'>Github</a> |
+    <a href='mailto:you@example.com'>Contact</a>
+</div>
+""", unsafe_allow_html=True)
+
